@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Reports Cataloguer – top-level nested stack that composes Cognito, S3, and ECS.
+  Upload the child templates to S3 first, then deploy this stack.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: reports-cataloguer
+  TemplatesBucketUrl:
+    Type: String
+    Description: >
+      S3 URL prefix where the child templates are stored, without trailing slash.
+      Example: https://s3.amazonaws.com/my-cf-templates-bucket/reports-cataloguer
+  UserPoolDomainPrefix:
+    Type: String
+    Default: reports-cataloguer
+  BucketSuffix:
+    Type: String
+    Description: Unique suffix for the S3 submissions bucket name
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet::Id
+  DesiredCount:
+    Type: Number
+    Default: 1
+  AwsRegion:
+    Type: String
+    Default: us-east-1
+  ImageTag:
+    Type: String
+    Default: latest
+
+Resources:
+
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplatesBucketUrl}/cognito.yaml"
+      Parameters:
+        AppName: !Ref AppName
+        UserPoolDomainPrefix: !Ref UserPoolDomainPrefix
+
+  S3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "${TemplatesBucketUrl}/s3.yaml"
+      Parameters:
+        AppName: !Ref AppName
+        BucketSuffix: !Ref BucketSuffix
+
+  EcsStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - CognitoStack
+      - S3Stack
+    Properties:
+      TemplateURL: !Sub "${TemplatesBucketUrl}/ecs.yaml"
+      Parameters:
+        AppName: !Ref AppName
+        VpcId: !Ref VpcId
+        PublicSubnet1: !Ref PublicSubnet1
+        PublicSubnet2: !Ref PublicSubnet2
+        PrivateSubnet1: !Ref PrivateSubnet1
+        PrivateSubnet2: !Ref PrivateSubnet2
+        DesiredCount: !Ref DesiredCount
+        AwsRegion: !Ref AwsRegion
+        ImageTag: !Ref ImageTag
+        CognitoUserPoolId: !GetAtt CognitoStack.Outputs.UserPoolId
+        CognitoClientId: !GetAtt CognitoStack.Outputs.UserPoolClientId
+        CognitoUserPoolArn: !GetAtt CognitoStack.Outputs.UserPoolArn
+        S3BucketName: !GetAtt S3Stack.Outputs.BucketName
+
+Outputs:
+  AlbDnsName:
+    Value: !GetAtt EcsStack.Outputs.AlbDnsName
+    Description: DNS name of the Application Load Balancer (API endpoint)
+  EcrRepositoryUri:
+    Value: !GetAtt EcsStack.Outputs.EcrRepositoryUri
+  UserPoolId:
+    Value: !GetAtt CognitoStack.Outputs.UserPoolId
+  UserPoolClientId:
+    Value: !GetAtt CognitoStack.Outputs.UserPoolClientId
+  SubmissionsBucket:
+    Value: !GetAtt S3Stack.Outputs.BucketName

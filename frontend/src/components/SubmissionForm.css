@@ -1,0 +1,19 @@
+.submission-form {
+  margin-bottom: 1.5rem;
+}
+
+.sf-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.submission-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.sf-btn {
+  margin-top: 1rem;
+}

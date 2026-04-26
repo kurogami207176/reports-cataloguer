@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Reports Cataloguer – S3 bucket for user submissions.
+  Objects are stored as: {userId}/{year}/{month}/{day}/{uuid}.json
+
+Parameters:
+  AppName:
+    Type: String
+    Default: reports-cataloguer
+  # Unique suffix appended to the bucket name to avoid global collisions
+  BucketSuffix:
+    Type: String
+    Description: A unique suffix (e.g. account ID) to keep the bucket name globally unique
+
+Resources:
+
+  SubmissionsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AppName}-submissions-${BucketSuffix}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-versions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 90
+
+Outputs:
+  BucketName:
+    Value: !Ref SubmissionsBucket
+    Export:
+      Name: !Sub "${AppName}-SubmissionsBucket"
+  BucketArn:
+    Value: !GetAtt SubmissionsBucket.Arn
+    Export:
+      Name: !Sub "${AppName}-SubmissionsBucketArn"
