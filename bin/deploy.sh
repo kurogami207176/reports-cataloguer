@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # deploy.sh
-# Deploys the full Reports Cataloguer stack to AWS.
+# Deploys the full Reports Cataloguer stack to AWS directly from the repo.
 #
 # Steps performed:
-#   1. Upload CloudFormation templates to S3
+#   1. Fetch VPC outputs from the vpc stack (created by bootstrap.sh)
 #   2. Deploy (create or update) the main CloudFormation stack
 #   3. Force a new ECS deployment so tasks pick up the latest image
 #
@@ -11,18 +11,12 @@
 #   ./bin/deploy.sh [image-tag]
 #
 # Required environment variables:
-#   AWS_REGION           – AWS region
-#   AWS_ACCOUNT_ID       – AWS account ID (auto-detected if not set)
-#   APP_NAME             – application name (default: reports-cataloguer)
-#   CF_TEMPLATES_BUCKET  – S3 bucket that stores the CF templates
-#   VPC_ID               – VPC ID
-#   PUBLIC_SUBNET_1      – first public subnet
-#   PUBLIC_SUBNET_2      – second public subnet
-#   PRIVATE_SUBNET_1     – first private subnet
-#   PRIVATE_SUBNET_2     – second private subnet
-#   BUCKET_SUFFIX        – unique suffix for the S3 submissions bucket
+#   BUCKET_SUFFIX  – unique suffix for the S3 submissions bucket (e.g. account ID)
 #
 # Optional:
+#   AWS_REGION               (default: ap-southeast-2)
+#   AWS_ACCOUNT_ID           (auto-detected if not set)
+#   APP_NAME                 (default: reports-cataloguer)
 #   USER_POOL_DOMAIN_PREFIX  (default: reports-cataloguer)
 #   DESIRED_COUNT            (default: 1)
 
@@ -34,58 +28,56 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_REGION="${AWS_REGION:-ap-southeast-2}"
 APP_NAME="${APP_NAME:-reports-cataloguer}"
 IMAGE_TAG="${1:-latest}"
 STACK_NAME="${APP_NAME}-stack"
+VPC_STACK_NAME="${APP_NAME}-vpc"
 USER_POOL_DOMAIN_PREFIX="${USER_POOL_DOMAIN_PREFIX:-${APP_NAME}}"
 DESIRED_COUNT="${DESIRED_COUNT:-1}"
 
-: "${CF_TEMPLATES_BUCKET:?CF_TEMPLATES_BUCKET must be set}"
-: "${VPC_ID:?VPC_ID must be set}"
-: "${PUBLIC_SUBNET_1:?PUBLIC_SUBNET_1 must be set}"
-: "${PUBLIC_SUBNET_2:?PUBLIC_SUBNET_2 must be set}"
-: "${PRIVATE_SUBNET_1:?PRIVATE_SUBNET_1 must be set}"
-: "${PRIVATE_SUBNET_2:?PRIVATE_SUBNET_2 must be set}"
 : "${BUCKET_SUFFIX:?BUCKET_SUFFIX must be set}"
 
 if [[ -z "${AWS_ACCOUNT_ID:-}" ]]; then
   AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 fi
 
-CF_PREFIX="${APP_NAME}/cf"
-TEMPLATES_URL="https://s3.amazonaws.com/${CF_TEMPLATES_BUCKET}/${CF_PREFIX}"
+ECR_REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}"
 
 # ---------------------------------------------------------------------------
-# 1. Upload CF templates
+# 1. Fetch VPC outputs
 # ---------------------------------------------------------------------------
-echo "==> Uploading CloudFormation templates to s3://${CF_TEMPLATES_BUCKET}/${CF_PREFIX}/"
-aws s3 sync \
-  "${REPO_ROOT}/cf/" \
-  "s3://${CF_TEMPLATES_BUCKET}/${CF_PREFIX}/" \
-  --exclude "*" \
-  --include "*.yaml" \
-  --region "${AWS_REGION}"
+echo "==> Fetching network outputs from stack: ${VPC_STACK_NAME}"
+
+get_output() {
+  aws cloudformation describe-stacks \
+    --region "${AWS_REGION}" \
+    --stack-name "${1}" \
+    --query "Stacks[0].Outputs[?OutputKey=='${2}'].OutputValue" \
+    --output text
+}
+
+VPC_ID="$(get_output "${VPC_STACK_NAME}" VpcId)"
+PUBLIC_SUBNET_1="$(get_output "${VPC_STACK_NAME}" PublicSubnet1)"
+PUBLIC_SUBNET_2="$(get_output "${VPC_STACK_NAME}" PublicSubnet2)"
 
 # ---------------------------------------------------------------------------
-# 2. Deploy main stack
+# 2. Deploy stack
 # ---------------------------------------------------------------------------
 echo "==> Deploying CloudFormation stack: ${STACK_NAME}"
 aws cloudformation deploy \
   --region "${AWS_REGION}" \
   --stack-name "${STACK_NAME}" \
   --template-file "${REPO_ROOT}/cf/main.yaml" \
-  --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+  --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
     AppName="${APP_NAME}" \
-    TemplatesBucketUrl="${TEMPLATES_URL}" \
+    EcrRepositoryUri="${ECR_REPOSITORY_URI}" \
     UserPoolDomainPrefix="${USER_POOL_DOMAIN_PREFIX}" \
     BucketSuffix="${BUCKET_SUFFIX}" \
     VpcId="${VPC_ID}" \
     PublicSubnet1="${PUBLIC_SUBNET_1}" \
     PublicSubnet2="${PUBLIC_SUBNET_2}" \
-    PrivateSubnet1="${PRIVATE_SUBNET_1}" \
-    PrivateSubnet2="${PRIVATE_SUBNET_2}" \
     DesiredCount="${DESIRED_COUNT}" \
     AwsRegion="${AWS_REGION}" \
     ImageTag="${IMAGE_TAG}" \
@@ -115,11 +107,7 @@ aws ecs wait services-stable \
 # ---------------------------------------------------------------------------
 # 4. Print outputs
 # ---------------------------------------------------------------------------
-ALB_DNS="$(aws cloudformation describe-stacks \
-  --region "${AWS_REGION}" \
-  --stack-name "${STACK_NAME}" \
-  --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
-  --output text)"
+ALB_DNS="$(get_output "${STACK_NAME}" AlbDnsName)"
 
 echo ""
 echo "================================================================="

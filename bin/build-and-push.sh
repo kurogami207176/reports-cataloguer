@@ -6,7 +6,7 @@
 #   ./bin/build-and-push.sh [image-tag]
 #
 # Environment variables (can also be set via .env):
-#   AWS_REGION      – AWS region (default: us-east-1)
+#   AWS_REGION      – AWS region (default: ap-southeast-2)
 #   AWS_ACCOUNT_ID  – AWS account ID (auto-detected if not set)
 #   APP_NAME        – application/ECR repository name (default: reports-cataloguer)
 
@@ -18,7 +18,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-AWS_REGION="${AWS_REGION:-us-east-1}"
+AWS_REGION="${AWS_REGION:-ap-southeast-2}"
 APP_NAME="${APP_NAME:-reports-cataloguer}"
 IMAGE_TAG="${1:-latest}"
 

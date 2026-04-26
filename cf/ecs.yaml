@@ -45,7 +45,7 @@ Parameters:
     Type: String
   AwsRegion:
     Type: String
-    Default: us-east-1
+    Default: ap-southeast-2
   ImageTag:
     Type: String
     Default: latest

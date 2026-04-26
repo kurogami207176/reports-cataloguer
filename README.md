@@ -52,41 +52,30 @@ npm start                     # proxies /api/* to http://localhost:8000
 
 - AWS CLI configured with sufficient permissions
 - Docker
-- An existing VPC with public + private subnets
 
-### One-time: create the CloudFormation templates bucket
+### One-time: bootstrap VPC + ECR
+
+Creates the VPC (two public subnets, internet gateway) and ECR repository:
 
 ```bash
-aws s3 mb s3://my-cf-templates-bucket --region us-east-1
+export AWS_REGION=ap-southeast-2
+./bin/bootstrap.sh
 ```
 
 ### Build & push the Docker image
 
 ```bash
-export AWS_REGION=us-east-1
-export APP_NAME=reports-cataloguer
 ./bin/build-and-push.sh v1.0.0
 ```
 
-### Deploy all stacks
+### Deploy
 
 ```bash
-export CF_TEMPLATES_BUCKET=my-cf-templates-bucket
-export VPC_ID=vpc-xxxxxxxx
-export PUBLIC_SUBNET_1=subnet-xxxxxxxx
-export PUBLIC_SUBNET_2=subnet-yyyyyyyy
-export PRIVATE_SUBNET_1=subnet-aaaaaaaa
-export PRIVATE_SUBNET_2=subnet-bbbbbbbb
 export BUCKET_SUFFIX=$(aws sts get-caller-identity --query Account --output text)
-
 ./bin/deploy.sh v1.0.0
 ```
 
-This deploys three nested CloudFormation stacks:
-
-1. **`cf/cognito.yaml`** – Cognito User Pool + App Client
-2. **`cf/s3.yaml`** – Submissions S3 bucket
-3. **`cf/ecs.yaml`** – ECS Fargate cluster, ALB, task definition & service
+All scripts deploy directly from the repo using `--template-file` — no S3 template bucket required. Network values are fetched automatically from the VPC stack.
 
 After deployment the ALB DNS name is printed – this is the API base URL.
 
