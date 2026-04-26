@@ -1,0 +1,81 @@
+/* ── Global reset & base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:     #1a73e8;
+  --primary-dk:  #1558b0;
+  --danger:      #d93025;
+  --success:     #188038;
+  --surface:     #ffffff;
+  --surface-2:   #f8f9fa;
+  --border:      #dadce0;
+  --text:        #202124;
+  --text-muted:  #5f6368;
+  --radius:      8px;
+  --shadow:      0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.24);
+  --shadow-md:   0 3px 6px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.12);
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--surface-2);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .6rem 1.4rem;
+  border: none;
+  border-radius: var(--radius);
+  font-size: .95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+}
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary  { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled)  { background: var(--primary-dk); }
+.btn-danger   { background: var(--danger);  color: #fff; }
+.btn-danger:hover:not(:disabled)   { background: #b3261e; }
+.btn-ghost    { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.btn-ghost:hover:not(:disabled)    { background: #e8f0fe; }
+
+.form-group { display: flex; flex-direction: column; gap: .4rem; }
+.form-group label { font-size: .875rem; font-weight: 500; color: var(--text-muted); }
+.form-group input,
+.form-group textarea {
+  padding: .65rem .9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26,115,232,.15);
+}
+
+.alert {
+  padding: .75rem 1rem;
+  border-radius: var(--radius);
+  font-size: .9rem;
+}
+.alert-error   { background: #fce8e6; color: var(--danger);  border: 1px solid #f5c6c3; }
+.alert-success { background: #e6f4ea; color: var(--success); border: 1px solid #b7dfbf; }
